@@ -1,0 +1,30 @@
+@startuml
+package "TourFirm.Desktop (WPF)" {
+  [LoginWindow] as Login
+  [ClientWindow] as CW
+  [EmployeeWindow] as EW
+  [ApiClient] as Client
+}
+
+package "TourFirm.Api (ASP.NET Core)" {
+  [AuthController] as Auth
+  [RequestsController] as Req
+  [ToursController] as Tours
+}
+
+package "TourFirm.Data (EF Core)" {
+  [AppDbContext] as Db
+  database "SQLite" as Sqlite
+}
+
+Login --> Client
+CW --> Client
+EW --> Client
+Client --> Auth : REST/JSON
+Client --> Req
+Client --> Tours
+Auth --> Db
+Req --> Db
+Tours --> Db
+Db --> Sqlite
+@enduml

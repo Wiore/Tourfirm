@@ -1,0 +1,37 @@
+@startuml
+actor Клиент
+participant "ClientWindow" as UI
+participant "ApiClient" as Api
+participant "RequestsController" as Ctrl
+participant "AppDbContext" as Db
+database "SQLite" as Sqlite
+
+== Подача заявки клиентом ==
+Клиент -> UI : Заполнить форму заявки
+UI -> Api : POST /api/requests
+Api -> Ctrl : TourRequest (JSON)
+Ctrl -> Db : SaveChangesAsync()
+Db -> Sqlite : INSERT INTO Requests
+Sqlite --> Db : OK
+Db --> Ctrl : TourRequest с Id
+Ctrl --> Api : 201 Created
+Api --> UI : TourRequest
+UI --> Клиент : Заявка отправлена
+
+== Ответ работника ==
+actor Работник
+Работник -> Ctrl : POST /api/proposals
+Ctrl -> Db : SaveChangesAsync()
+Ctrl -> Db : UPDATE Request.Status = AwaitingApproval
+Db -> Sqlite : UPDATE
+Sqlite --> Db : OK
+Ctrl --> Работник : 201 Created
+
+== Решение клиента ==
+Клиент -> UI : Нажать «Принять»
+UI -> Api : POST /api/requests/proposals/{id}/decide?approve=true
+Api -> Ctrl : proposalId, approve
+Ctrl -> Db : UPDATE Request.Status = Approved
+Ctrl --> UI : 204 No Content
+UI --> Клиент : Заявка согласована
+@enduml

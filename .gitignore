@@ -1,0 +1,27 @@
+# Сборка
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# SQLite база (создаётся автоматически миграциями)
+*.db
+*.db-shm
+*.db-wal
+
+# NuGet
+*.nupkg
+packages/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Логи
+*.log

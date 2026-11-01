@@ -1,0 +1,42 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Клиент" as Client
+actor "Работник турфирмы" as Employee
+
+package "Система турфирмы" {
+  usecase "Вход" as UC_Login
+  usecase "Регистрация" as UC_Reg
+  usecase "Оформление заявки" as UC_Req
+  usecase "Узнать статус заявки" as UC_Status
+  usecase "Посмотреть туры" as UC_Tours
+  usecase "Принять тур(ы)" as UC_Accept
+  usecase "Отклонить тур(ы)" as UC_Reject
+  usecase "Поступившие заявки" as UC_Incoming
+  usecase "Ответ на заявку" as UC_Answer
+  usecase "Просмотр клиентской базы" as UC_Base
+  usecase "Просмотр профиля клиента" as UC_Profile
+  usecase "Просмотр истории туров клиента" as UC_History
+  usecase "Добавление тура" as UC_AddTour
+  usecase "Изменение тура" as UC_EditTour
+}
+
+Client --> UC_Login
+Client --> UC_Reg
+Client --> UC_Req
+Client --> UC_Status
+Client --> UC_Tours
+UC_Status ..> UC_Accept : <<include>>
+UC_Status ..> UC_Reject : <<include>>
+
+Employee --> UC_Login
+Employee --> UC_Incoming
+Employee --> UC_Base
+UC_Incoming --> UC_Answer
+UC_Answer ..> UC_History : <<include>>
+UC_Base --> UC_Profile
+UC_Profile <|-- UC_AddTour
+UC_Profile <|-- UC_EditTour
+
+@enduml

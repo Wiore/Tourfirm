@@ -1,0 +1,71 @@
+@startuml
+' Настройки для красивых таблиц
+hide circle
+skinparam linetype ortho
+skinparam nodesep 50
+
+entity "Offices" as Offices {
+  * Id : INTEGER <<PK>>
+  --
+  Name : TEXT
+  Address : TEXT
+}
+
+entity "Users" as Users {
+  * Id : INTEGER <<PK>>
+  --
+  Login : TEXT
+  PasswordHash : TEXT
+  FullName : TEXT
+  Role : INTEGER (0-Клиент, 1-Сотрудник)
+  * OfficeId : INTEGER <<FK>>
+}
+
+entity "TourRequests" as Requests {
+  * Id : INTEGER <<PK>>
+  --
+  Destination : TEXT
+  DurationDays : INTEGER
+  Status : INTEGER
+  * ClientId : INTEGER <<FK>>
+  * AssignedEmployeeId : INTEGER <<FK>>
+}
+
+entity "TourProposals" as Proposals {
+  * Id : INTEGER <<PK>>
+  --
+  Message : TEXT
+  ClientDecision : INTEGER
+  * RequestId : INTEGER <<FK>>
+  * EmployeeId : INTEGER <<FK>>
+}
+
+entity "ProposalItems" as Items {
+  * Id : INTEGER <<PK>>
+  --
+  Title : TEXT
+  Price : REAL
+  * ProposalId : INTEGER <<FK>>
+}
+
+entity "Tours" as Tours {
+  * Id : INTEGER <<PK>>
+  --
+  Title : TEXT
+  StartDate : DATETIME
+  EndDate : DATETIME
+  * ClientId : INTEGER <<FK>>
+  RequestId : INTEGER <<FK>>
+}
+
+' Отрисовка связей (Один-ко-многим)
+Offices ||--o{ Users : "работает в"
+Users ||--o{ Requests : "создает заявку (Клиент)"
+Users ||--o{ Requests : "назначается (Сотрудник)"
+Requests ||--o{ Proposals : "содержит"
+Users ||--o{ Proposals : "отправляет (Сотрудник)"
+Proposals ||--o{ Items : "включает"
+Users ||--o{ Tours : "покупает (Клиент)"
+Requests ||--o{ Tours : "на основе"
+
+@enduml

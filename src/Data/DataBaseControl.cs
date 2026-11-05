@@ -304,8 +304,8 @@ namespace DataBaseControl
             command.Parameters.AddWithValue("@reqId", (object?)requestId ?? DBNull.Value);
             command.Parameters.AddWithValue("@title", title);
             command.Parameters.AddWithValue("@country", country);
-            command.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd HH:mm:ss"));
-            command.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd HH:mm:ss"));
+            command.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
+            command.Parameters.AddWithValue("@end", end.ToString("yyyy-MM-dd"));
             await command.ExecuteNonQueryAsync();
         }
         public async Task<List<object>> GetActiveRequests()
@@ -390,8 +390,8 @@ namespace DataBaseControl
 
             command.Parameters.AddWithValue("@title", data.Title);
             command.Parameters.AddWithValue("@country", data.Country);
-            command.Parameters.AddWithValue("@start", data.StartDate.ToString("yyyy-MM-dd HH:mm:ss"));
-            command.Parameters.AddWithValue("@end", data.EndDate.ToString("yyyy-MM-dd HH:mm:ss"));
+            command.Parameters.AddWithValue("@start", data.StartDate.ToString("yyyy-MM-dd"));
+            command.Parameters.AddWithValue("@end", data.EndDate.ToString("yyyy-MM-dd"));
             command.Parameters.AddWithValue("@id", data.TourId);
 
             int rowsAffected = await command.ExecuteNonQueryAsync();

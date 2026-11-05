@@ -72,19 +72,6 @@ namespace Users
         public string Description { get; set; } = "";
         public decimal Price { get; set; }
     }
-    public class UpdateTourData
-    {
-        [Required]
-        public int TourId { get; set; }
-        [Required(ErrorMessage = "Укажите новое название тура")]
-        public string Title { get; set; } = "";
-        [Required(ErrorMessage = "Укажите страну")]
-        public string Country { get; set; } = "";
-        [Required]
-        public DateTime StartDate { get; set; }
-        [Required]
-        public DateTime EndDate { get; set; }
-    }
     public class NewTourData
     {
         [Required]
@@ -99,9 +86,26 @@ namespace Users
         public string Country { get; set; } = "";
 
         [Required]
+        [DataType(DataType.Date)]
         public DateTime StartDate { get; set; }
 
         [Required]
+        [DataType(DataType.Date)]
+        public DateTime EndDate { get; set; }
+    }
+    public class UpdateTourData
+    {
+        [Required]
+        public int TourId { get; set; }
+        [Required(ErrorMessage = "Укажите новое название тура")]
+        public string Title { get; set; } = "";
+        [Required(ErrorMessage = "Укажите страну")]
+        public string Country { get; set; } = "";
+        [Required]
+        [DataType(DataType.Date)]
+        public DateTime StartDate { get; set; }
+        [Required]
+        [DataType(DataType.Date)]
         public DateTime EndDate { get; set; }
     }
 }

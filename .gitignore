@@ -25,3 +25,4 @@ Thumbs.db
 
 # Логи
 *.log
+/src/Web/Web.csproj

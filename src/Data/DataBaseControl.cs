@@ -359,10 +359,6 @@ namespace DataBaseControl
             var list = new List<object>();
             using var connection = await GetConnection();
 
-            // Сначала собираем туры клиента в список, чтобы освободить reader:
-            // на одном SQLite-соединении нельзя держать два открытых reader'а
-            // одновременно, а ниже для каждого тура мы отдельным запросом тянем
-            // услуги утверждённого предложения.
             var tours = new List<(int Id, string Title, string Country,
                                   string StartDate, string EndDate, int Status, int? RequestId)>();
 
@@ -392,9 +388,6 @@ namespace DataBaseControl
                 var items = new List<object>();
                 double total = 0;
 
-                // Тур привязан к заявке — берём её предложение, которое клиент
-                // согласовал (ClientDecision = 1), и его позиции (услуги).
-                // Стоимость тура = сумма цен позиций этого предложения.
                 if (t.RequestId is not null)
                 {
                     int approvedProposalId = 0;
@@ -465,8 +458,6 @@ namespace DataBaseControl
             var list = new List<object>();
             using var connection = await GetConnection();
 
-            // Собираем предложения заявки в список, чтобы освободить reader перед
-            // отдельным запросом позиций каждого предложения.
             var proposals = new List<(int Id, string Message, int? Decision)>();
             using (var command = connection.CreateCommand())
             {

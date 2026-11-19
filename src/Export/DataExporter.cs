@@ -9,24 +9,10 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace DataBaseControl
 {
-    /// <summary>
-    /// Лабораторная работа №5. Форматы данных: JSON, CSV, XML, YAML.
-    ///
-    /// Универсальный экспортёр: выбирает одну «главную» таблицу (TourRequests),
-    /// связанную с другими (TourProposals → ProposalItems), извлекает записи
-    /// SQL-запросом и сериализует их сразу в четыре формата в папку out/.
-    ///
-    /// Универсальность: все сериализаторы (ToJson / ToCsv / ToXml / ToYaml) работают
-    /// с абстрактной структурой <c>List&lt;Dictionary&lt;string, object?&gt;&gt;</c>, где значениями
-    /// могут быть скаляры или вложенные списки таких же словарей. Чтобы сменить
-    /// таблицу или структуру вложенности, достаточно переписать один метод
-    /// <see cref="LoadRequestsNestedAsync"/> — форматы трогать не нужно.
-    /// </summary>
     public class DataExporter
     {
         private readonly string _connectionString;
 
-        /// <summary> Папка для выгрузки (создаётся автоматически, если её нет). </summary>
         public string OutDirectory { get; set; } = "out";
 
         public DataExporter(string connectionString = "Data Source=TourFirm.db")
@@ -34,18 +20,12 @@ namespace DataBaseControl
             _connectionString = connectionString;
         }
 
-        /// <summary>
-        /// Полный цикл экспорта: создаёт папку out, грузит данные, пишет 4 файла.
-        /// </summary>
         public async Task<ExportResult> ExportAllAsync(string? outDir = null)
         {
             string dir = string.IsNullOrWhiteSpace(outDir) ? OutDirectory : outDir;
-            Directory.CreateDirectory(dir); // требование методички: папка создаётся сама
 
-            // Шаг методички: SQL-запрос по связанной таблице с вложенными данными.
             List<Dictionary<string, object?>> records = await LoadRequestsNestedAsync();
 
-            // Шаг методички: четыре файла в папке out.
             string jsonPath = Path.Combine(dir, "data.json");
             string csvPath  = Path.Combine(dir, "data.csv");
             string xmlPath  = Path.Combine(dir, "data.xml");
@@ -59,17 +39,6 @@ namespace DataBaseControl
             return new ExportResult(dir, jsonPath, csvPath, xmlPath, yamlPath, records.Count);
         }
 
-        // =====================================================================
-        //  Загрузка данных из БД.
-        //  Единственное место, привязанное к конкретной таблице: меняем SQL —
-        //  меняем структуру экспорта, сериализаторы остаются прежними.
-        // =====================================================================
-
-        /// <summary>
-        /// Загружает все заявки и вкладывает в каждую связанные предложения,
-        /// а в каждое предложение — его позиции. Отражает схему связей:
-        /// TourRequests (1) ← (N) TourProposals (1) ← (N) ProposalItems.
-        /// </summary>
         private async Task<List<Dictionary<string, object?>>> LoadRequestsNestedAsync()
         {
             var requests = new List<Dictionary<string, object?>>();
@@ -77,7 +46,6 @@ namespace DataBaseControl
             await using var connection = new SqliteConnection(_connectionString);
             await connection.OpenAsync();
 
-            // Главная таблица: все заявки.
             using (var cmd = connection.CreateCommand())
             {
                 cmd.CommandText = @"
@@ -98,12 +66,11 @@ namespace DataBaseControl
                         ["status"]             = reader.GetInt32(5),
                         ["createdAt"]          = reader.GetString(6),
                         ["assignedEmployeeId"] = reader.IsDBNull(7) ? null : (int?)reader.GetInt32(7),
-                        ["proposals"]          = new List<Dictionary<string, object?>>() // заполним ниже
+                        ["proposals"]          = new List<Dictionary<string, object?>>()
                     });
                 }
             }
 
-            // Связанная таблица 1: предложения по каждой заявке + позиции в них.
             foreach (var req in requests)
             {
                 int requestId = (int)req["id"]!;
@@ -136,7 +103,6 @@ namespace DataBaseControl
             return requests;
         }
 
-        /// <summary> Связанная таблица 2: позиции конкретного предложения. </summary>
         private static async Task<List<Dictionary<string, object?>>> LoadItemsAsync(
             SqliteConnection connection, int proposalId)
         {
@@ -163,26 +129,16 @@ namespace DataBaseControl
             return items;
         }
 
-        // =====================================================================
-        //  Сериализаторы. Универсальные: работают с любой структурой словарей.
-        // =====================================================================
-
-        /// <summary> JSON: вложенные объекты и массивы сохраняются как есть. </summary>
         public static string ToJson(List<Dictionary<string, object?>> records)
         {
             var options = new JsonSerializerOptions
             {
                 WriteIndented = true,
-                // Не прятать кириллицу в \uXXXX — файл читается человеком.
                 Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
             return JsonSerializer.Serialize(records, options);
         }
 
-        /// <summary>
-        /// CSV: формат не поддерживает вложенность, поэтому поля связанных таблиц
-        /// объединяются в одну ячейку через «;» — как в примере методички со skills.
-        /// </summary>
         public static string ToCsv(List<Dictionary<string, object?>> records)
         {
             var sb = new StringBuilder();
@@ -215,10 +171,6 @@ namespace DataBaseControl
             return sb.ToString();
         }
 
-        /// <summary>
-        /// XML: вложенность отражается подтегами (proposals → proposal → items → item),
-        /// по аналогии с примером методички (student → address → skills).
-        /// </summary>
         public static string ToXml(List<Dictionary<string, object?>> records)
         {
             var root = new XElement("tourRequests");
@@ -268,7 +220,6 @@ namespace DataBaseControl
             ).ToString();
         }
 
-        /// <summary> YAML: вложенность задаётся отступами, списки — дефисами. </summary>
         public static string ToYaml(List<Dictionary<string, object?>> records)
         {
             var serializer = new SerializerBuilder()
@@ -276,8 +227,6 @@ namespace DataBaseControl
                 .Build();
             return serializer.Serialize(records);
         }
-
-        // ----- Вспомогательные -----
 
         private static string DecisionText(object? decision) =>
             decision switch
@@ -294,10 +243,6 @@ namespace DataBaseControl
             return value.ToString("0.##", CultureInfo.InvariantCulture) + " руб.";
         }
 
-        /// <summary>
-        /// Экранирование поля CSV по RFC 4180: если в значении есть запятая,
-        /// кавычка или перевод строки — оборачиваем в кавычки и удваиваем внутренние.
-        /// </summary>
         private static string CsvField(object? value)
         {
             string s = value?.ToString() ?? "";
@@ -307,7 +252,6 @@ namespace DataBaseControl
         }
     }
 
-    /// <summary> Результат экспорта: пути к четырём файлам и количество записей. </summary>
     public record ExportResult(
         string Directory,
         string JsonPath,

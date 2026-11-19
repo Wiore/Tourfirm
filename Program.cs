@@ -30,7 +30,7 @@ public partial class Program
         }
 
 
-        app.UseCors("AllowAll"); // <--- Вот здесь
+        app.UseCors("AllowAll");
         app.UseHttpsRedirection();
         app.UseSwagger();
         app.UseSwaggerUI();

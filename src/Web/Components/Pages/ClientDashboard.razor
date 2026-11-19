@@ -200,7 +200,6 @@ else
     private async Task DecideAsync(int proposalId, bool approve)
     {
         await Http.PostAsync($"api/users/proposal/{proposalId}/decide?approve={approve.ToString().ToLower()}", null);
-        // обновляем открытые предложения и список туров
         foreach (var key in proposalsByRequest.Keys.ToList())
             await LoadProposalsAsync(key);
         await LoadAllAsync();
@@ -231,8 +230,6 @@ else
         _    => d.ToString()!
     };
 
-    // Денежная сумма без локальных разделителей, чтобы не зависеть от культуры
-    // сервера: 12345.0 -> "12,345", 12345.5 -> "12,345.5".
     private static string Money(double v) =>
         v.ToString("#,0.##", System.Globalization.CultureInfo.InvariantCulture);
 }

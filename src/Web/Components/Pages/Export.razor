@@ -80,7 +80,6 @@ else
 
     private async Task Download(string format)
     {
-        // Открываем файл в новой вкладке: полный URL API (другой порт).
         string url = $"{Http.BaseAddress}api/export/download/{format}";
         await JS.InvokeVoidAsync("open", url, "_blank");
     }

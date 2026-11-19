@@ -3,10 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Turfirm.Controllers
 {
-    /// <summary>
-    /// API экспорта данных в форматы JSON, CSV, XML, YAML (лаб. работа №5).
-    /// Позволяет запустить выгрузку и скачать готовые файлы.
-    /// </summary>
     [ApiController]
     [Route("api/export")]
     public class ExportController : ControllerBase
@@ -18,10 +14,6 @@ namespace Turfirm.Controllers
             _db = new DataBase();
         }
 
-        /// <summary>
-        /// Запускает экспорт: создаёт папку out и четыре файла data.* .
-        /// Доступ только сотрудникам (Role = 1).
-        /// </summary>
         [HttpPost("run")]
         public async Task<IActionResult> Run([FromQuery] int userId)
         {
@@ -45,9 +37,6 @@ namespace Turfirm.Controllers
             });
         }
 
-        /// <summary>
-        /// Отдаёт готовый файл экспорта по формату (json/csv/xml/yaml).
-        /// </summary>
         [HttpGet("download/{format}")]
         public IActionResult Download(string format)
         {
@@ -64,8 +53,6 @@ namespace Turfirm.Controllers
             if (relative.Length == 0)
                 return BadRequest("Неизвестный формат. Доступны: json, csv, xml, yaml.");
 
-            // PhysicalFile требует абсолютный путь — разрешаем относительно
-            // рабочей директории API (папка проекта при `dotnet run`).
             string file = Path.GetFullPath(relative);
 
             if (!System.IO.File.Exists(file))

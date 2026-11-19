@@ -1,0 +1,64 @@
+@page "/register"
+@rendermode InteractiveServer
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="card auth-card">
+    <h1>Регистрация клиента</h1>
+
+    <EditForm Model="@form" FormName="register" OnValidSubmit="@RegisterAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <label>Логин <InputText @bind-Value="form.Login" /></label>
+        <label>Никнейм <InputText @bind-Value="form.NickName" /></label>
+        <label>Email <InputText @bind-Value="form.Email" /></label>
+        <label>Телефон <InputText @bind-Value="form.Phone" placeholder="+7…" /></label>
+        <label>Пароль <InputText type="password" @bind-Value="form.Password" /></label>
+
+        <button type="submit" class="btn primary" disabled="@busy">
+            @(busy ? "Отправка…" : "Зарегистрироваться")
+        </button>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert error">@error</div> }
+    @if (!string.IsNullOrEmpty(ok))     { <div class="alert success">@ok</div> }
+
+    <p class="muted">Уже есть аккаунт? <a href="/">Войти</a></p>
+</div>
+
+@code {
+    private NewUserData form = new();
+    private bool busy;
+    private string? error;
+    private string? ok;
+
+    private async Task RegisterAsync()
+    {
+        busy = true;
+        error = null;
+        ok = null;
+        try
+        {
+            // POST /api/users/register
+            var resp = await Http.PostAsJsonAsync("api/users/register", form);
+            if (resp.IsSuccessStatusCode)
+            {
+                ok = "Регистрация прошла успешно. Теперь можно войти.";
+                form = new NewUserData();
+            }
+            else
+            {
+                error = await resp.Content.ReadAsStringAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            error = "Не удалось связаться с API: " + ex.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

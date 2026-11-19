@@ -112,10 +112,10 @@ namespace DataBaseControl
 
             using var command = connection.CreateCommand();
             command.CommandText = @"SELECT Id, Nickname, Password, Email, Phone, Role FROM Users WHERE Login = @login";
-            command.Parameters.AddWithValue("@login",login);
+            command.Parameters.AddWithValue("@login", login);
             using var reader = await command.ExecuteReaderAsync();
 
-            if(await reader.ReadAsync())
+            if (await reader.ReadAsync())
             {
                 if (password == reader.GetString(2))
                 {
@@ -132,16 +132,16 @@ namespace DataBaseControl
                         }
                     };
                 }
-                return new EnterUser() { EnterStatus=EnterStatus.WrongPassword};
+                return new EnterUser() { EnterStatus = EnterStatus.WrongPassword };
             }
-            return new EnterUser() { EnterStatus=EnterStatus.UserNotFound};
+            return new EnterUser() { EnterStatus = EnterStatus.UserNotFound };
         }
-        public async Task<UserData> InsToUser(NewUserData newUserDat)
+        public async Task<UserData> InsToUser(NewUserData newUserDat, int role = 0)
         {
             using var connection = await GetConnection();
 
             string sql = @"INSERT INTO Users (Login, Password, Nickname, Email, Phone, Role, OfficeId, WorkstationId) 
-                   VALUES (@login, @password, @nickname, @email, @phone, 0, NULL, NULL)";
+                   VALUES (@login, @password, @nickname, @email, @phone, @role, NULL, NULL)";
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
@@ -151,6 +151,7 @@ namespace DataBaseControl
             command.Parameters.AddWithValue("@nickname", newUserDat.NickName);
             command.Parameters.AddWithValue("@email", newUserDat.Email);
             command.Parameters.AddWithValue("@phone", newUserDat.Phone);
+            command.Parameters.AddWithValue("@role", role);
 
             await command.ExecuteNonQueryAsync();
 
@@ -159,7 +160,7 @@ namespace DataBaseControl
 
             int id = Convert.ToInt32(await idCommand.ExecuteScalarAsync());
 
-            return (new UserData() { Id = id, Email=newUserDat.Email,Login=newUserDat.Login,Phone=newUserDat.Phone,NickName=newUserDat.NickName});
+            return (new UserData() { Id = id, Email = newUserDat.Email, Login = newUserDat.Login, Phone = newUserDat.Phone, NickName = newUserDat.NickName });
         }
         public async Task<bool> CheckLogin(string login)
         {
@@ -169,7 +170,7 @@ namespace DataBaseControl
             command.Parameters.AddWithValue("@login", login.ToLower());
 
             var result = await command.ExecuteScalarAsync();
-            return Convert.ToInt32(result)>0;
+            return Convert.ToInt32(result) > 0;
         }
         public async Task InsToOffices(string name, string address)
         {
@@ -177,7 +178,7 @@ namespace DataBaseControl
 
             string sql = @"INSERT INTO Offices (Name, Address)
                 VALUES (@name, @address)";
-            
+
             using var command = conection.CreateCommand();
             command.CommandText = sql;
 
@@ -357,23 +358,85 @@ namespace DataBaseControl
         {
             var list = new List<object>();
             using var connection = await GetConnection();
-            using var command = connection.CreateCommand();
 
-            command.CommandText = @"SELECT Id, Title, Country, StartDate, EndDate, Status 
-                            FROM Tours WHERE ClientId = @id ORDER BY StartDate DESC";
-            command.Parameters.AddWithValue("@id", clientId);
+            // Сначала собираем туры клиента в список, чтобы освободить reader:
+            // на одном SQLite-соединении нельзя держать два открытых reader'а
+            // одновременно, а ниже для каждого тура мы отдельным запросом тянем
+            // услуги утверждённого предложения.
+            var tours = new List<(int Id, string Title, string Country,
+                                  string StartDate, string EndDate, int Status, int? RequestId)>();
 
-            using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            using (var command = connection.CreateCommand())
             {
+                command.CommandText = @"SELECT Id, Title, Country, StartDate, EndDate, Status, RequestId 
+                                FROM Tours WHERE ClientId = @id ORDER BY StartDate DESC";
+                command.Parameters.AddWithValue("@id", clientId);
+
+                using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    tours.Add((
+                        reader.GetInt32(0),
+                        reader.GetString(1),
+                        reader.GetString(2),
+                        reader.GetString(3),
+                        reader.GetString(4),
+                        reader.GetInt32(5),
+                        reader.IsDBNull(6) ? (int?)null : reader.GetInt32(6)
+                    ));
+                }
+            }
+
+            foreach (var t in tours)
+            {
+                var items = new List<object>();
+                double total = 0;
+
+                // Тур привязан к заявке — берём её предложение, которое клиент
+                // согласовал (ClientDecision = 1), и его позиции (услуги).
+                // Стоимость тура = сумма цен позиций этого предложения.
+                if (t.RequestId is not null)
+                {
+                    int approvedProposalId = 0;
+                    using (var propCmd = connection.CreateCommand())
+                    {
+                        propCmd.CommandText = "SELECT Id FROM TourProposals WHERE RequestId = @reqId AND ClientDecision = 1 LIMIT 1";
+                        propCmd.Parameters.AddWithValue("@reqId", t.RequestId.Value);
+                        var propIdObj = await propCmd.ExecuteScalarAsync();
+                        if (propIdObj is not null && propIdObj != DBNull.Value)
+                            approvedProposalId = Convert.ToInt32(propIdObj);
+                    }
+
+                    if (approvedProposalId > 0)
+                    {
+                        using var itemCmd = connection.CreateCommand();
+                        itemCmd.CommandText = "SELECT Title, Description, Price FROM ProposalItems WHERE ProposalId = @pId ORDER BY Id";
+                        itemCmd.Parameters.AddWithValue("@pId", approvedProposalId);
+                        using var itemReader = await itemCmd.ExecuteReaderAsync();
+                        while (await itemReader.ReadAsync())
+                        {
+                            double price = itemReader.GetDouble(2);
+                            total += price;
+                            items.Add(new
+                            {
+                                Title = itemReader.GetString(0),
+                                Description = itemReader.IsDBNull(1) ? "" : itemReader.GetString(1),
+                                Price = price
+                            });
+                        }
+                    }
+                }
+
                 list.Add(new
                 {
-                    Id = reader.GetInt32(0),
-                    Title = reader.GetString(1),
-                    Country = reader.GetString(2),
-                    StartDate = reader.GetString(3),
-                    EndDate = reader.GetString(4),
-                    Status = reader.GetInt32(5)
+                    Id = t.Id,
+                    Title = t.Title,
+                    Country = t.Country,
+                    StartDate = t.StartDate,
+                    EndDate = t.EndDate,
+                    Status = t.Status,
+                    TotalPrice = total,
+                    Items = items
                 });
             }
             return list;
@@ -401,18 +464,55 @@ namespace DataBaseControl
         {
             var list = new List<object>();
             using var connection = await GetConnection();
-            using var command = connection.CreateCommand();
 
-            command.CommandText = "SELECT Id, Message, ClientDecision FROM TourProposals WHERE RequestId = @id";
-            command.Parameters.AddWithValue("@id", requestId);
-
-            using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            // Собираем предложения заявки в список, чтобы освободить reader перед
+            // отдельным запросом позиций каждого предложения.
+            var proposals = new List<(int Id, string Message, int? Decision)>();
+            using (var command = connection.CreateCommand())
             {
-                int proposalId = reader.GetInt32(0);
-                string message = reader.GetString(1);
+                command.CommandText = "SELECT Id, Message, ClientDecision FROM TourProposals WHERE RequestId = @id ORDER BY CreatedAt DESC";
+                command.Parameters.AddWithValue("@id", requestId);
 
-                list.Add(new { Id = proposalId, Message = message, Decision = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2) });
+                using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    proposals.Add((
+                        reader.GetInt32(0),
+                        reader.GetString(1),
+                        reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2)
+                    ));
+                }
+            }
+
+            foreach (var p in proposals)
+            {
+                var items = new List<object>();
+                double total = 0;
+
+                using var itemCmd = connection.CreateCommand();
+                itemCmd.CommandText = "SELECT Title, Description, Price FROM ProposalItems WHERE ProposalId = @pId ORDER BY Id";
+                itemCmd.Parameters.AddWithValue("@pId", p.Id);
+                using var itemReader = await itemCmd.ExecuteReaderAsync();
+                while (await itemReader.ReadAsync())
+                {
+                    double price = itemReader.GetDouble(2);
+                    total += price;
+                    items.Add(new
+                    {
+                        Title = itemReader.GetString(0),
+                        Description = itemReader.IsDBNull(1) ? "" : itemReader.GetString(1),
+                        Price = price
+                    });
+                }
+
+                list.Add(new
+                {
+                    Id = p.Id,
+                    Message = p.Message,
+                    Decision = p.Decision,
+                    TotalPrice = total,
+                    Items = items
+                });
             }
             return list;
         }

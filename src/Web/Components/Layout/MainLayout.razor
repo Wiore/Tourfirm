@@ -1,23 +1,46 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="app-shell">
+    <header class="topbar">
+        <div class="brand">🌍 Turfirm</div>
+        <nav class="nav-links">
+            @if (session.IsLoggedIn)
+            {
+                <NavLink class="nav-item" href="@dashboardHref">Личный кабинет</NavLink>
+                @if (session.IsEmployee)
+                {
+                    <NavLink class="nav-item" href="/export">Экспорт данных</NavLink>
+                }
+                <button class="nav-item nav-btn" @onclick="Logout">
+                    Выйти (@session.CurrentUser?.NickName)
+                </button>
+            }
+            else
+            {
+                <NavLink class="nav-item" href="/">Вход</NavLink>
+                <NavLink class="nav-item" href="/register">Регистрация</NavLink>
+            }
+        </nav>
+    </header>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
+    <main class="content">
+        @Body
     </main>
+
+    <footer class="footer">
+        <span>Turfirm © 2026</span>
+    </footer>
 </div>
 
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
-</div>
+@code {
+    [Inject] private UserSession session { get; set; } = default!;
+    [Inject] private NavigationManager nav { get; set; } = default!;
+
+    private string dashboardHref => session.IsEmployee ? "/employee" : "/client";
+
+    private void Logout()
+    {
+        session.Logout();
+        nav.NavigateTo("/");
+    }
+}

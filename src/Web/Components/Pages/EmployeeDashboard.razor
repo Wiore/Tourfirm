@@ -1,0 +1,190 @@
+@page "/employee"
+@rendermode InteractiveServer
+@inject HttpClient Http
+@inject UserSession Session
+@inject NavigationManager Nav
+
+@if (!Session.IsLoggedIn || !Session.IsEmployee)
+{
+    <div class="card">
+        <h1>Доступ запрещён</h1>
+        <p class="muted">Эта страница только для сотрудников. <a href="/">Войти как сотрудник</a></p>
+    </div>
+}
+else
+{
+    <h1>Кабинет сотрудника</h1>
+    <p class="muted">Вы вошли как <b>@Session.CurrentUser?.NickName</b> (сотрудник)</p>
+
+    <!-- Активные заявки -->
+    <div class="card">
+        <h2>Активные заявки</h2>
+        <button class="btn small" @onclick="LoadActiveAsync">Обновить список</button>
+        @if (activeRequests.Any())
+        {
+            <div class="table-wrap">
+                <table class="grid">
+                    <thead><tr><th>№</th><th>Клиент</th><th>Направление</th><th>Дни</th><th>Статус</th><th>Действие</th></tr></thead>
+                    <tbody>
+                        @foreach (var r in activeRequests)
+                        {
+                            <tr>
+                                <td>@r.Id</td>
+                                <td>клиент #@r.ClientId</td>
+                                <td>@r.Destination</td>
+                                <td>@r.DurationDays</td>
+                                <td>@StatusText(r.Status)</td>
+                                <td><button class="btn small" @onclick="() => StartProposal(r)">Ответить</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="muted">Активных заявок нет.</p>
+        }
+    </div>
+
+    <!-- Форма предложения -->
+    @if (draft.RequestId > 0)
+    {
+        <div class="card">
+            <h2>Предложение по заявке #@draft.RequestId</h2>
+            <EditForm Model="@draft" FormName="proposal" OnValidSubmit="@SendProposalAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <label>Сопроводительный текст <InputTextArea @bind-Value="draft.Message" rows="3" /></label>
+
+                <h3>Позиции (услуги)</h3>
+                @for (int i = 0; i < draft.Items.Count; i++)
+                {
+                    int idx = i;
+                    <div class="row">
+                        <InputText @bind-Value="draft.Items[idx].Title" placeholder="Название" />
+                        <InputText @bind-Value="draft.Items[idx].Description" placeholder="Описание" />
+                        <InputNumber @bind-Value="draft.Items[idx].Price" placeholder="Цена" />
+                        <button class="btn small red" @onclick="() => draft.Items.RemoveAt(idx)">×</button>
+                    </div>
+                }
+                <button class="btn small" @onclick="@(() => draft.Items.Add(new ProposalItemDto()))">+ позиция</button>
+
+                <button class="btn primary" type="submit" disabled="@busy">Отправить предложение</button>
+            </EditForm>
+            @if (!string.IsNullOrEmpty(msg)) { <div class="alert success">@msg</div> }
+        </div>
+    }
+
+    <!-- Все клиенты -->
+    <div class="card">
+        <h2>Клиенты</h2>
+        <button class="btn small" @onclick="LoadClientsAsync">Загрузить список</button>
+        @if (clients.Any())
+        {
+            <div class="table-wrap">
+                <table class="grid">
+                    <thead><tr><th>№</th><th>Никнейм</th><th>Email</th><th>Телефон</th></tr></thead>
+                    <tbody>
+                        @foreach (var c in clients)
+                        {
+                            <tr><td>@c.Id</td><td>@c.NickName</td><td>@c.Email</td><td>@c.Phone</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <!-- Добавить тур клиенту -->
+    <div class="card">
+        <h2>Добавить тур клиенту</h2>
+        <EditForm Model="@tour" FormName="addTour" OnValidSubmit="@AddTourAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <label>Клиент (ID) <InputNumber @bind-Value="tour.ClientId" /></label>
+            <label>Заявка (ID, необязательно) <InputNumber @bind-Value="tour.RequestId" /></label>
+            <label>Название тура <InputText @bind-Value="tour.Title" /></label>
+            <label>Страна <InputText @bind-Value="tour.Country" /></label>
+            <label>Дата начала <InputDate @bind-Value="tour.StartDate" /></label>
+            <label>Дата конца <InputDate @bind-Value="tour.EndDate" /></label>
+            <button class="btn primary" type="submit" disabled="@busy">Добавить тур</button>
+        </EditForm>
+    </div>
+
+    <p><a href="/export" class="btn">Перейти к экспорту данных (JSON / CSV / XML / YAML) →</a></p>
+}
+
+@code {
+    private List<ActiveRequestDto> activeRequests = new();
+    private List<UserData> clients = new();
+    private NewProposal draft = new() { EmployeeId = 0, RequestId = 0, Message = "", Items = new() { new() } };
+    private NewTourData tour = new() { StartDate = DateTime.Today, EndDate = DateTime.Today.AddDays(7) };
+    private bool busy;
+    private string? msg;
+
+    protected override void OnInitialized()
+    {
+        if (Session.IsEmployee)
+            draft.EmployeeId = Session.CurrentUser!.Id;
+    }
+
+    private async Task LoadActiveAsync()
+    {
+        activeRequests = await Http.GetFromJsonAsync<List<ActiveRequestDto>>("api/users/requests/active") ?? new();
+    }
+
+    private void StartProposal(ActiveRequestDto r)
+    {
+        draft = new()
+        {
+            EmployeeId = Session.CurrentUser!.Id,
+            RequestId = r.Id,
+            Message = "",
+            Items = new() { new() }
+        };
+        msg = null;
+    }
+
+    private async Task SendProposalAsync()
+    {
+        busy = true;
+        msg = null;
+        var resp = await Http.PostAsJsonAsync("api/users/create-proposal", draft);
+        if (resp.IsSuccessStatusCode)
+        {
+            msg = "Предложение отправлено по заявке #" + draft.RequestId;
+            draft = new()
+            {
+                EmployeeId = Session.CurrentUser!.Id,
+                RequestId = 0,
+                Message = "",
+                Items = new() { new() }
+            };
+            await LoadActiveAsync();
+        }
+        busy = false;
+    }
+
+    private async Task LoadClientsAsync()
+    {
+        clients = await Http.GetFromJsonAsync<List<UserData>>($"api/users/all-clients?userId={Session.CurrentUser!.Id}") ?? new();
+    }
+
+    private async Task AddTourAsync()
+    {
+        busy = true;
+        await Http.PostAsJsonAsync($"api/users/tour/add?userId={Session.CurrentUser!.Id}", tour);
+        tour = new() { StartDate = DateTime.Today, EndDate = DateTime.Today.AddDays(7) };
+        busy = false;
+    }
+
+    private static string StatusText(int s) => s switch
+    {
+        0 => "новая",
+        1 => "в работе",
+        2 => "есть предложение",
+        3 => "согласована",
+        _ => s.ToString()
+    };
+}

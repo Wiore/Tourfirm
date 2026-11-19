@@ -1,0 +1,51 @@
+﻿- id: 1
+  clientId: 4
+  destination: string
+  durationDays: 30
+  wishes: string
+  status: 3
+  createdAt: 2026-11-06 13:39:36
+  assignedEmployeeId: 
+  proposals:
+  - id: 1
+    employeeId: 1
+    message: string
+    createdAt: 2026-11-06 13:40:23
+    clientDecision: 1
+    items:
+    - id: 1
+      title: string
+      description: string
+      price: 0
+- id: 2
+  clientId: 6
+  destination: asdasdasd
+  durationDays: 6
+  wishes: sdasdasdas
+  status: 0
+  createdAt: 2026-11-19 18:31:23
+  assignedEmployeeId: 
+  proposals: []
+- id: 3
+  clientId: 6
+  destination: asda
+  durationDays: 5
+  wishes: 'sdcxvfedfv '
+  status: 2
+  createdAt: 2026-11-19 18:31:36
+  assignedEmployeeId: 
+  proposals:
+  - id: 2
+    employeeId: 1
+    message: gbpltw
+    createdAt: 2026-11-19 18:33:10
+    clientDecision: 
+    items:
+    - id: 2
+      title: билеты туда
+      description: туда
+      price: 123
+    - id: 3
+      title: билеты сюда
+      description: сюда
+      price: 321

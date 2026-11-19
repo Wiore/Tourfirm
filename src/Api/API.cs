@@ -61,30 +61,6 @@ namespace Turfirm.Controllers
             return Ok(users);
         }
 
-        [HttpGet("{clientId}/tours")]
-        public async Task<IActionResult> GetClientTours(int clientId)
-        {
-            var tours = await _db.GetClientTours(clientId);
-            return Ok(tours);
-        }
-
-        [HttpPut("tour/update")]
-        public async Task<IActionResult> UpdateTour([FromBody] UpdateTourData data, [FromQuery] int userId)
-        {
-            if (!await _db.IsEmployee(userId))
-                return Unauthorized("Доступ запрещен. Только для сотрудников.");
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            bool success = await _db.UpdateTour(data);
-
-            if (success)
-                return Ok(new { message = "Тур успешно обновлен" });
-            else
-                return NotFound(new { message = "Тур с таким ID не найден" });
-        }
-
         [HttpPost("create-request")]
         public async Task<IActionResult> CreateRequest([FromBody] NewTourRequest request)
         {
@@ -139,6 +115,29 @@ namespace Turfirm.Controllers
         {
             var proposals = await _db.GetProposalsByRequest(requestId);
             return Ok(proposals);
+        }
+        [HttpGet("{clientId}/tours")]
+        public async Task<IActionResult> GetClientTours(int clientId)
+        {
+            var tours = await _db.GetClientTours(clientId);
+            return Ok(tours);
+        }
+
+        [HttpPut("tour/update")]
+        public async Task<IActionResult> UpdateTour([FromBody] UpdateTourData data, [FromQuery] int userId)
+        {
+            if (!await _db.IsEmployee(userId))
+                return Unauthorized("Доступ запрещен. Только для сотрудников.");
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            bool success = await _db.UpdateTour(data);
+
+            if (success)
+                return Ok(new { message = "Тур успешно обновлен" });
+            else
+                return NotFound(new { message = "Тур с таким ID не найден" });
         }
 
         [HttpPost("tour/add")]

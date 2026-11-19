@@ -1,0 +1,238 @@
+@page "/client"
+@rendermode InteractiveServer
+@inject HttpClient Http
+@inject UserSession Session
+@inject NavigationManager Nav
+
+@if (!Session.IsLoggedIn)
+{
+    <div class="card">
+        <h1>Войдите в систему</h1>
+        <p class="muted"><a href="/">На страницу входа</a></p>
+    </div>
+}
+else
+{
+    <h1>Личный кабинет клиента</h1>
+    <p class="muted">Здравствуйте, <b>@Session.CurrentUser?.NickName</b></p>
+
+    <!-- Создать заявку на тур -->
+    <div class="card">
+        <h2>Новая заявка на тур</h2>
+        <EditForm Model="@newRequest" FormName="newRequest" OnValidSubmit="@CreateRequestAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <label>Направление (страна / город) <InputText @bind-Value="newRequest.Destination" /></label>
+            <label>Длительность, дней <InputNumber @bind-Value="newRequest.DurationDays" min="1" max="30" /></label>
+            <label>Пожелания <InputTextArea @bind-Value="newRequest.Wishes" rows="2" /></label>
+            <button class="btn primary" type="submit" disabled="@busy">Отправить заявку</button>
+        </EditForm>
+    </div>
+
+    <!-- Мои заявки и предложения -->
+    <div class="card">
+        <h2>Мои заявки и предложения</h2>
+        @if (requests.Any())
+        {
+            @foreach (var req in requests)
+            {
+                <details class="request">
+                    <summary>
+                        <b>Заявка #@req.Id</b> — @req.Destination, @req.DurationDays дн.
+                        — @StatusText(req.Status) <span class="muted">(@req.CreatedAt)</span>
+                    </summary>
+                    <button class="btn small" @onclick="() => LoadProposalsAsync(req.Id)">
+                        Показать предложения
+                    </button>
+                    @if (proposalsByRequest.TryGetValue(req.Id, out var props))
+                    {
+                        if (props.Any())
+                        {
+                            <ul class="proposals">
+                                @foreach (var p in props)
+                                {
+                                    <li>
+                                        <b>Предложение #@p.Id</b> — @Money(p.TotalPrice) ₽
+                                        <span class="muted">(@DecisionText(p.Decision))</span>
+                                        @if (!string.IsNullOrWhiteSpace(p.Message))
+                                        {
+                                            <div class="muted">@p.Message</div>
+                                        }
+                                        @if (p.Items.Any())
+                                        {
+                                            <div class="table-wrap">
+                                                <table class="grid mini">
+                                                    <thead><tr><th>Услуга</th><th>Описание</th><th class="num">Цена</th></tr></thead>
+                                                    <tbody>
+                                                        @foreach (var it in p.Items)
+                                                        {
+                                                            <tr>
+                                                                <td>@it.Title</td>
+                                                                <td>@it.Description</td>
+                                                                <td class="num">@Money(it.Price) ₽</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr><td colspan="2">Итого за тур</td><td class="num"><b>@Money(p.TotalPrice) ₽</b></td></tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        }
+                                        @if (p.Decision == null)
+                                        {
+                                            <button class="btn small green" @onclick="() => DecideAsync(p.Id, true)">Согласовать</button>
+                                            <button class="btn small red"   @onclick="() => DecideAsync(p.Id, false)">Отклонить</button>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <p class="muted">Предложений пока нет.</p>
+                        }
+                    }
+                </details>
+            }
+        }
+        else
+        {
+            <p class="muted">Заявок пока нет.</p>
+        }
+    </div>
+
+    <!-- Мои туры -->
+    <div class="card">
+        <h2>Мои туры</h2>
+        @if (tours.Any())
+        {
+            @foreach (var t in tours)
+            {
+                <details class="request">
+                    <summary>
+                        <b>Тур #@t.Id — @t.Title</b>
+                        <span class="muted">@t.Country · @t.StartDate → @t.EndDate · @TourStatusText(t.Status)</span>
+                        — <b>@Money(t.TotalPrice) ₽</b>
+                    </summary>
+                    @if (t.Items.Any())
+                    {
+                        <div class="table-wrap">
+                            <table class="grid mini">
+                                <thead><tr><th>Услуга</th><th>Описание</th><th class="num">Цена</th></tr></thead>
+                                <tbody>
+                                    @foreach (var it in t.Items)
+                                    {
+                                        <tr>
+                                            <td>@it.Title</td>
+                                            <td>@it.Description</td>
+                                            <td class="num">@Money(it.Price) ₽</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr><td colspan="2">Итого за тур</td><td class="num"><b>@Money(t.TotalPrice) ₽</b></td></tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="muted">Состав услуг и цена не сформированы (тур добавлен без согласованного предложения).</p>
+                    }
+                </details>
+            }
+        }
+        else
+        {
+            <p class="muted">Туров пока нет.</p>
+        }
+    </div>
+}
+
+@code {
+    private List<ClientRequestDto> requests = new();
+    private List<TourDto> tours = new();
+    private Dictionary<int, List<ProposalDto>> proposalsByRequest = new();
+    private NewTourRequest newRequest = new() { ClientId = 0, DurationDays = 7 };
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.CurrentUser is not null)
+        {
+            newRequest.ClientId = Session.CurrentUser.Id;
+            await LoadAllAsync();
+        }
+    }
+
+    private async Task LoadAllAsync()
+    {
+        var id = Session.CurrentUser!.Id;
+        requests = await Http.GetFromJsonAsync<List<ClientRequestDto>>($"api/users/{id}/requests") ?? new();
+        tours    = await Http.GetFromJsonAsync<List<TourDto>>($"api/users/{id}/tours") ?? new();
+    }
+
+    private async Task CreateRequestAsync()
+    {
+        busy = true;
+        var resp = await Http.PostAsJsonAsync("api/users/create-request", newRequest);
+        if (resp.IsSuccessStatusCode)
+        {
+            newRequest = new()
+            {
+                ClientId = Session.CurrentUser!.Id,
+                DurationDays = 7,
+                Destination = "",
+                Wishes = ""
+            };
+            await LoadAllAsync();
+        }
+        busy = false;
+    }
+
+    private async Task LoadProposalsAsync(int requestId)
+    {
+        var list = await Http.GetFromJsonAsync<List<ProposalDto>>($"api/users/request/{requestId}/proposals") ?? new();
+        proposalsByRequest[requestId] = list;
+    }
+
+    private async Task DecideAsync(int proposalId, bool approve)
+    {
+        await Http.PostAsync($"api/users/proposal/{proposalId}/decide?approve={approve.ToString().ToLower()}", null);
+        // обновляем открытые предложения и список туров
+        foreach (var key in proposalsByRequest.Keys.ToList())
+            await LoadProposalsAsync(key);
+        await LoadAllAsync();
+    }
+
+    private static string StatusText(int s) => s switch
+    {
+        0 => "новая",
+        1 => "в работе",
+        2 => "есть предложение",
+        3 => "согласована",
+        _ => s.ToString()
+    };
+
+    private static string TourStatusText(int s) => s switch
+    {
+        0 => "запланирован",
+        1 => "идёт",
+        2 => "завершён",
+        _ => s.ToString()
+    };
+
+    private static string DecisionText(int? d) => d switch
+    {
+        null => "ожидает решения",
+        1    => "согласовано",
+        0    => "отклонено",
+        _    => d.ToString()!
+    };
+
+    // Денежная сумма без локальных разделителей, чтобы не зависеть от культуры
+    // сервера: 12345.0 -> "12,345", 12345.5 -> "12,345.5".
+    private static string Money(double v) =>
+        v.ToString("#,0.##", System.Globalization.CultureInfo.InvariantCulture);
+}

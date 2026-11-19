@@ -1,0 +1,70 @@
+﻿<tourRequests>
+  <tourRequest>
+    <id>1</id>
+    <clientId>4</clientId>
+    <destination>string</destination>
+    <durationDays>30</durationDays>
+    <status>3</status>
+    <createdAt>2026-11-06 13:39:36</createdAt>
+    <wishes>string</wishes>
+    <proposals>
+      <proposal>
+        <id>1</id>
+        <employeeId>1</employeeId>
+        <message>string</message>
+        <createdAt>2026-11-06 13:40:23</createdAt>
+        <clientDecision>1</clientDecision>
+        <items>
+          <item>
+            <id>1</id>
+            <title>string</title>
+            <description>string</description>
+            <price>0</price>
+          </item>
+        </items>
+      </proposal>
+    </proposals>
+  </tourRequest>
+  <tourRequest>
+    <id>2</id>
+    <clientId>6</clientId>
+    <destination>asdasdasd</destination>
+    <durationDays>6</durationDays>
+    <status>0</status>
+    <createdAt>2026-11-19 18:31:23</createdAt>
+    <wishes>sdasdasdas</wishes>
+    <proposals />
+  </tourRequest>
+  <tourRequest>
+    <id>3</id>
+    <clientId>6</clientId>
+    <destination>asda</destination>
+    <durationDays>5</durationDays>
+    <status>2</status>
+    <createdAt>2026-11-19 18:31:36</createdAt>
+    <wishes>sdcxvfedfv </wishes>
+    <proposals>
+      <proposal>
+        <id>2</id>
+        <employeeId>1</employeeId>
+        <message>gbpltw</message>
+        <createdAt>2026-11-19 18:33:10</createdAt>
+        <clientDecision />
+        <items>
+          <item>
+            <id>2</id>
+            <title>билеты туда</title>
+            <description>туда</description>
+            <price>123</price>
+          </item>
+          <item>
+            <id>3</id>
+            <title>билеты сюда</title>
+            <description>сюда</description>
+            <price>321</price>
+          </item>
+        </items>
+      </proposal>
+    </proposals>
+  </tourRequest>
+</tourRequests>

@@ -1,4 +1,5 @@
 ﻿using DataBaseControl;
+using Microsoft.AspNetCore.Identity.Data;
 
 public partial class Program
 {
@@ -21,20 +22,20 @@ public partial class Program
 
         var app = builder.Build();
 
-        app.UseHttpsRedirection();
-
         if (!File.Exists("TourFirm.db"))
         {
             var db = new DataBase();
             await db.GenerateDataBase();
+            await db.InsToUser(new Users.NewUserData() { Login = "employer", Email="employer@gmail.com", NickName="admin", Password="password", Phone="+79524405011"} ,1);
         }
 
+
+        app.UseCors("AllowAll"); // <--- Вот здесь
+        app.UseHttpsRedirection();
         app.UseSwagger();
         app.UseSwaggerUI();
-
-        app.UseCors("AllowAll");
-
         app.MapControllers();
+
 
         app.Run();
     }
